@@ -5,6 +5,12 @@ const dir = path.join(__dirname, 'public');
 const fs = require('fs');
 const app = express();
 
+
+// user defined
+const EvaluateEntry = require('./src/evaluate_entry.js');
+const ResultCode = require('./src/result_code');
+const Utils = require('./src/utils.js');
+
 const mime = {
     html: 'text/html',
     txt: 'text/plain',
@@ -15,6 +21,9 @@ const mime = {
     svg: 'image/svg+xml',
     js: 'application/javascript'
 };
+
+app.use(express.static('public'));
+app.use(express.json());
 
 const HTTPServer = app.listen(30001,
     () => {
@@ -41,8 +50,6 @@ webSocketServer.on('connection', (ws, request) => {
     })
 });
 
-app.use(express.static('public'));
-
 app.get('*', function (req, res) {
     var file = path.join(dir, req.path.replace(/\/$/, '/index.html'));
     if (file.indexOf(dir + path.sep) !== 0) {
@@ -60,8 +67,51 @@ app.get('*', function (req, res) {
     });
 });
 
-app.post("/upload", function(req, res) {
-    console.log(req.body);
-    res.status(200);
-    res.send('ok');
+app.post("/upload", function (req, res) {
+
+    console.log(req.body)
+
+    const image = Buffer.from(req.body.image, 'base64').toString();
+    const fileName = req.body.name;
+    const fileExt = path.extname(req.body.name);
+
+    if (!Utils.isImageFile(fileExt)) {
+        res.status(ResultCode.LOGIC_ERROR);
+        res.send();
+        return;
+    }
+
+    let base64Data;
+    if (fileExt == ".png")
+        base64Data = req.body.image.replace(/^data:image\/png;base64,/, "");
+    else if (fileExt == ".gif")
+        base64Data = req.body.image.replace(/^data:image\/gif;base64,/, "");
+
+    fs.writeFile("./public/images/" + fileName, base64Data, 'base64', function (err) {
+        if (err) {
+            console.log(err);
+            res.status(ResultCode.LOGIC_ERROR);
+            res.send();
+        }
+        res.status(200);
+        res.send('ok');
+    });
 });
+
+app.post("/test", function (req, res) {
+    if (req.body.type == "init") {
+        testInit(res);
+    }
+    else {
+        res.status(ResultCode.NOT_FOUND);
+        res.send();
+    }
+});
+
+function testInit(res) {
+    let evaluateEntry = new EvaluateEntry();
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ payload: evaluateEntry.toString() }));
+}
