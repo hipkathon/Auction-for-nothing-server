@@ -35,6 +35,9 @@ const webSocketServer = new wsModule.Server({
     server: HTTPServer,
 });
 
+// User variable
+let evaluateEntryList = [];
+
 webSocketServer.on('connection', (ws, request) => {
     const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
     console.log(`새로운 클라이언트[${ip}] 접속`);
@@ -68,10 +71,6 @@ app.get('*', function (req, res) {
 });
 
 app.post("/upload", function (req, res) {
-
-    console.log(req.body)
-
-    const image = Buffer.from(req.body.image, 'base64').toString();
     const fileName = req.body.name;
     const fileExt = path.extname(req.body.name);
 
@@ -100,7 +99,7 @@ app.post("/upload", function (req, res) {
 
 app.post("/test", function (req, res) {
     if (req.body.type == "init") {
-        testInit(res);
+        testInit(req, res);
     }
     else {
         res.status(ResultCode.NOT_FOUND);
@@ -108,8 +107,12 @@ app.post("/test", function (req, res) {
     }
 });
 
-function testInit(res) {
-    let evaluateEntry = new EvaluateEntry();
+function testInit(req, res) {
+    const contents = fs.readFileSync(req.body.url, { encoding: 'base64' });
+
+    let evaluateEntry = new EvaluateEntry(req.body.url, req.body.src);
+
+    evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
     res.status(200);
     res.setHeader('Content-Type', 'application/json');
