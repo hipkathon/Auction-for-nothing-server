@@ -1,10 +1,17 @@
 class EvaluateEntry {
     static EVALUATE_ENTRY_ID = 1;
 
+    static State = {
+        HIPPABLE: 1,
+        NOT_HIP: 2,
+        HIP: 3
+    };
+
     constructor(url, src) {
         this.id = EvaluateEntry.EVALUATE_ENTRY_ID++;
         this.url = url;
         this.src = src;
+        this.state = EvaluateEntry.State.HIPPABLE;
 
         const curDate = new Date();
         this.expireDate = new Date(new Date(curDate).setHours(curDate.getHours() + 2));
@@ -25,6 +32,7 @@ class EvaluateEntry {
             url: this.url,
             src: this.src,
             hip: this.hip,
+            state: this.state,
             expireDate: this.expireDate,
             intParam1: this.intParam1,
             intParam2: this.intParam2,
@@ -35,14 +43,31 @@ class EvaluateEntry {
     }
 
     isAlreadyEvaluate(uid) {
-        if (this.evaluateUidDict[uid] == uid)
-            return true;
-        return false;
+        return this.evaluateUidDict[uid] == uid;
     }
 
     evaluate(uid) {
         this.hip++;
         this.evaluateUidDict[uid] = uid;
+    }
+
+    isExpire(curDate) {
+        return this.expireDate < curDate;
+    }
+
+    isHippable() {
+        return this.state == EvaluateEntry.State.HIPPABLE;
+    }
+
+    isHip() {
+        return this.state == EvaluateEntry.State.HIP;
+    }
+
+    finish() {
+        if (this.hip >= 0)
+            this.state = EvaluateEntry.State.HIP;
+        else
+            this.state = EvaluateEntry.State.NOT_HIP;
     }
 }
 

@@ -39,13 +39,24 @@ const webSocketServer = new wsModule.Server({
 
 // User variable
 let evaluateEntryList = [];
+let auctionEntryList = [];
 
 function update() {
+    const curDate = Utils.getCurrentDate();
+    const expiredEntryList = evaluateEntryList
+        .filter(evaluateEntry => evaluateEntry.isHippable())
+        .filter(evaluateEntry => evaluateEntry.isExpire(curDate));
 
+    expiredEntryList.forEach(expiredEntry => {
+        expiredEntry.finish();
+        if (expiredEntry.isHip()) {
+            // is very hip!!
+        }
+    });
 }
 
 setInterval(function () {
-    // update();
+    update();
 }, 1000 / 32);
 
 function sendHttpResponse(res, resultCode, payload) {
