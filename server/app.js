@@ -100,6 +100,13 @@ webSocketServer.on('connection', (ws, request) => {
 
     if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
         // ws.send(`클라이언트[${ip}] 접속을 환영합니다 from 서버`);
+        evaluateEntryList
+        .filter(evaluateEntry => evaluateEntry != null)
+        .forEach(evaluateEntry => sendUpdatedEvaluatedEntry(evaluateEntry, ws));
+
+        auctionEntryList
+        .filter(auctionEntry => auctionEntry != null)
+        .forEach(auctionEntry => sendUpdatedAuctionEntry(auctionEntry, ws));
     }
     ws.on('message', (msg) => { console.log(`클라이언트[${ip}]에게 수신한 메시지 : ${msg}`); })
 
@@ -311,6 +318,32 @@ function broadcastUpdatedAuctionEntry(entry) {
         }
     }
 }
+
+function sendUpdatedEvaluatedEntry(entry, ws) {
+    const obj = {
+        type: "UpdateEvaluateEntry",
+        id: entry.id,
+        hip: entry.hip,
+        state: entry.state,
+        expireDate: Utils.timestamp(entry.expireDate)
+    };
+
+    ws.send(JSON.stringify(obj));
+}
+
+function sendUpdatedAuctionEntry(entry, ws) {
+    const obj = {
+        type: "UpdateAuctionEntry",
+        id: entry.id,
+        state: entry.state,
+        nextUpdateDate: Utils.timestamp(entry.nextUpdateDate),
+        lastBidUid: entry.lastBidUid,
+        lastBidPrice: entry.lastBidPrice
+    };
+
+    ws.send(JSON.stringify(obj));
+}
+
 
 /// test
 app.post("/test", function (req, res) {

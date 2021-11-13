@@ -51,8 +51,12 @@ class AuctionEntry {
         return JSON.stringify(obj);
     }
 
+    isInPorgress() {
+        return this.state == AuctionEntry.State.IN_PROGRESS;
+    }
+
     isDone() {
-        return this.state != AuctionEntry.State.DONE;
+        return this.state == AuctionEntry.State.DONE;
     }
 
     update(curDate) {
