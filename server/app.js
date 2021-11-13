@@ -10,6 +10,7 @@ const app = express();
 const EvaluateEntry = require('./src/evaluate_entry.js');
 const ResultCode = require('./src/result_code');
 const Utils = require('./src/utils.js');
+const Network = require('./src/network.js');
 
 const mime = {
     html: 'text/html',
@@ -121,8 +122,24 @@ app.post("/upload", function (req, res) {
 });
 
 app.post('/evaluate', function (req, res) {
-    
-    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluates }));
+    const id = req.body.id;
+    const evaluateEntry = evaluateEntryList[id];
+
+    if (
+        evaluateEntry == null ||
+        evaluateEntry == undefined) {
+        sendHttpResponse(res, ResultCode.NO_EVALUATE_ENTRY);
+        return;
+    }
+
+    const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
+    if (evaluateEntry.isAlreadyEvaluate(uid)) {
+        sendHttpResponse(res, ResultCode.ALREADY_EVALUATE_ENTRY);
+        return;
+    }
+
+    evaluateEntry.evaluate(uid);
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
 });
 
 app.post("/test", function (req, res) {
