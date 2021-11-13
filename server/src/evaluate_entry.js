@@ -7,11 +7,13 @@ class EvaluateEntry {
         HIP: 3
     };
 
-    constructor(uid, url, src) {
+    constructor(uid, url, src, title, content) {
         this.id = EvaluateEntry.EVALUATE_ENTRY_ID++;
         this.uid = uid;
         this.url = url;
         this.src = src;
+        this.title = title;
+        this.content = content;
         this.state = EvaluateEntry.State.HIPPABLE;
 
         const curDate = new Date();
@@ -36,6 +38,8 @@ class EvaluateEntry {
             id: this.id,
             url: this.url,
             src: this.src,
+            title: this.title,
+            content: this.content,
             hip: this.hip,
             state: this.state,
             expireDate: this.expireDate,

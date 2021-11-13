@@ -52,7 +52,12 @@ function update() {
     expiredEntryList.forEach(expiredEntry => {
         expiredEntry.finish();
         if (expiredEntry.isHip()) {
-            let auctionEntry = new AuctionEntry(expiredEntry.uid, expiredEntry.url, expiredEntry.src);
+            let auctionEntry = new AuctionEntry(
+                expiredEntry.uid,
+                expiredEntry.url,
+                expiredEntry.src,
+                expiredEntry.title,
+                expiredEntry.content);
             auctionEntryList[auctionEntry.id] = auctionEntry;
             removeReservedEvaluateEntryList.push(expiredEntry.id);
         }
@@ -165,6 +170,8 @@ app.get('/public/*', function (req, res) {
 app.post("/upload", function (req, res) {
     const fileName = req.body.name;
     const fileExt = path.extname(req.body.name);
+    const title = req.body.title;
+    const content = req.body.content;
 
     if (!Utils.isImageFile(fileExt)) {
         sendHttpResponse(res, ResultCode.LOGIC_ERROR);
@@ -186,7 +193,12 @@ app.post("/upload", function (req, res) {
         }
 
         const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
-        let evaluateEntry = new EvaluateEntry(uid, "./public/images/" + fileName, base64Data);
+        let evaluateEntry = new EvaluateEntry(
+            uid,
+            "./public/images/" + fileName,
+            base64Data,
+            title,
+            content);
 
         console.log(evaluateEntry.id);
 

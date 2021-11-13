@@ -7,7 +7,7 @@ class AuctionEntry {
         DONE: 3
     };
 
-    constructor(uid, url, src) {
+    constructor(uid, url, src, title, content) {
         this.id = AuctionEntry.AuctionEntry++;
         this.uid = uid;
         this.url = url;
@@ -38,6 +38,8 @@ class AuctionEntry {
             id: this.id,
             url: this.url,
             src: this.src,
+            title: this.title,
+            content: this.content,
             state: this.state,
             nextUpdateDate: this.nextUpdateDate,
             lastBidUid: this.lastBidUid,
