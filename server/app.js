@@ -31,6 +31,7 @@ const HTTPServer = app.listen(30001,
     });
 
 const wsModule = require('ws');
+const { REFUSED } = require('dns');
 const webSocketServer = new wsModule.Server({
     server: HTTPServer,
 });
@@ -45,6 +46,12 @@ function update() {
 setInterval(function () {
     // update();
 }, 1000 / 32);
+
+function sendHttpResponse(res, resultCode, payload) {
+    res.status(resultCode);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(payload);
+}
 
 
 webSocketServer.on('connection', (ws, request) => {
@@ -62,7 +69,17 @@ webSocketServer.on('connection', (ws, request) => {
     })
 });
 
-app.get('*', function (req, res) {
+app.get('/evaluates', function (req, res) {
+    let evaluates = {
+        list: evaluateEntryList
+            .filter(evaluate => evaluate != null)
+            .map(evaluate => evaluate.toString())
+    }
+
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluates }));
+});
+
+app.get('/public/*', function (req, res) {
     var file = path.join(dir, req.path.replace(/\/$/, '/index.html'));
     if (file.indexOf(dir + path.sep) !== 0) {
         return res.status(403).end('Forbidden');
@@ -84,8 +101,7 @@ app.post("/upload", function (req, res) {
     const fileExt = path.extname(req.body.name);
 
     if (!Utils.isImageFile(fileExt)) {
-        res.status(ResultCode.LOGIC_ERROR);
-        res.send();
+        sendHttpResponse(res, ResultCode.LOGIC_ERROR);
         return;
     }
 
@@ -98,12 +114,15 @@ app.post("/upload", function (req, res) {
     fs.writeFile("./public/images/" + fileName, base64Data, 'base64', function (err) {
         if (err) {
             console.log(err);
-            res.status(ResultCode.LOGIC_ERROR);
-            res.send();
+            sendHttpResponse(res, ResultCode.LOGIC_ERROR);
         }
-        res.status(200);
-        res.send('ok');
+        sendHttpResponse(res, ResultCode.SUCCESS);
     });
+});
+
+app.post('/evaluate', function (req, res) {
+    
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluates }));
 });
 
 app.post("/test", function (req, res) {
@@ -114,8 +133,7 @@ app.post("/test", function (req, res) {
         testVT(req, res);
     }
     else {
-        res.status(ResultCode.NOT_FOUND);
-        res.send();
+        sendHttpResponse(res, ResultCode.NOT_FOUND);
     }
 });
 
@@ -125,9 +143,7 @@ function testInit(req, res) {
 
     evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
-    res.status(200);
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ payload: evaluateEntry.toString() }));
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
 }
 
 function testVT(req, res) {
@@ -144,8 +160,7 @@ function testVT(req, res) {
         Utils.virtualTime = 0;
     }
     else {
-        res.status(ResultCode.NOT_FOUND);
-        res.send();
+        sendHttpResponse(res, ResultCode.NOT_FOUND);
         return;
     }
 
@@ -153,7 +168,5 @@ function testVT(req, res) {
 
     update();
 
-    res.status(200);
-    res.setHeader('Content-Type', 'application/json');
-    res.send();
+    sendHttpResponse(res, ResultCode.SUCCESS);
 }
