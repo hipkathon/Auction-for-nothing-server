@@ -53,7 +53,7 @@ function update() {
     let removeReservedEvaluateEntryList = [];
     expiredEntryList.forEach(expiredEntry => {
         expiredEntry.finish();
-        broadcastUpdatedEvaluatedEntry( expiredEntry );
+        broadcastUpdatedEvaluatedEntry(expiredEntry);
 
         if (expiredEntry.isHip()) {
             let auctionEntry = new AuctionEntry(
@@ -72,11 +72,11 @@ function update() {
         expiredEntryList[id] = null;
 
     auctionEntryList
-        .filter(auctionEntry => (auctionEntry != null) )
+        .filter(auctionEntry => (auctionEntry != null))
         .forEach(auctionEntry => {
             const prevState = auctionEntry.state;
             auctionEntry.update(Utils.getCurrentDate());
-            if ( auctionEntry.state != prevState)
+            if (auctionEntry.state != prevState)
                 broadcastUpdatedAuctionEntry(auctionEntry);
         });
 }
@@ -238,16 +238,17 @@ app.post('/evaluate', function (req, res) {
     evaluateEntry.evaluate(uid);
     sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
 
-    broadcastUpdatedEvaluatedEntry( evaluateEntry );
+    broadcastUpdatedEvaluatedEntry(evaluateEntry);
 });
 
 app.post('/bid', function (req, res) {
     const id = req.body.id;
+    const price = req.body.price;
     const auctionEntry = auctionEntryList[id];
 
     if (
-        evaluateEntry == null ||
-        evaluateEntry == undefined) {
+        auctionEntry == null ||
+        auctionEntry == undefined) {
         sendHttpResponse(res, ResultCode.NO_EVALUATE_ENTRY);
         return;
     }
@@ -275,14 +276,15 @@ app.post('/bid', function (req, res) {
 });
 
 /// broadcast
-function broadcastUpdatedEvaluatedEntry( entry ) {
+function broadcastUpdatedEvaluatedEntry(entry) {
     const obj = {
-        type : "UpdateEvaluateEntry",
-        id : entry.id,
-        hip : entry.hip,
-        state : entry.state,
-        expireDate : entry.expireDate};
-        
+        type: "UpdateEvaluateEntry",
+        id: entry.id,
+        hip: entry.hip,
+        state: entry.state,
+        expireDate: entry.expireDate
+    };
+
     JSON.stringify(obj);
 
     for (let i in SOCKET_LIST) {
@@ -293,15 +295,16 @@ function broadcastUpdatedEvaluatedEntry( entry ) {
     }
 }
 
-function broadcastUpdatedAuctionEntry( entry ) {
+function broadcastUpdatedAuctionEntry(entry) {
     const obj = {
-        type : "UpdateAuctionEntry",
+        type: "UpdateAuctionEntry",
         id: entry.id,
         state: entry.state,
         nextUpdateDate: entry.nextUpdateDate,
         lastBidUid: entry.lastBidUid,
-        lastBidPrice: entry.lastBidPrice };
-        
+        lastBidPrice: entry.lastBidPrice
+    };
+
     JSON.stringify(obj);
 
     for (let i in SOCKET_LIST) {
