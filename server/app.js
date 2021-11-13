@@ -11,6 +11,7 @@ const EvaluateEntry = require('./src/evaluate_entry.js');
 const ResultCode = require('./src/result_code');
 const Utils = require('./src/utils.js');
 const Network = require('./src/network.js');
+const AuctionEntry = require('./src/auction_entry.js');
 
 const mime = {
     html: 'text/html',
@@ -24,7 +25,7 @@ const mime = {
 };
 
 app.use(express.static('public'));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
 const HTTPServer = app.listen(30001,
     () => {
@@ -47,12 +48,24 @@ function update() {
         .filter(evaluateEntry => evaluateEntry.isHippable())
         .filter(evaluateEntry => evaluateEntry.isExpire(curDate));
 
+    let removeReservedEvaluateEntryList = [];
     expiredEntryList.forEach(expiredEntry => {
         expiredEntry.finish();
         if (expiredEntry.isHip()) {
-            // is very hip!!
+            let auctionEntry = new AuctionEntry(expiredEntry.uid, expiredEntry.url, expiredEntry.src);
+            auctionEntryList[auctionEntry.id] = auctionEntry;
+            removeReservedEvaluateEntryList.push(expiredEntry.id);
         }
     });
+
+    for (id in removeReservedEvaluateEntryList)
+        expiredEntryList[id] = null;
+
+    auctionEntryList
+        .filter(auctionEntry => auctionEntry != null)
+        .forEach(auctionEntry => {
+            auctionEntry.update();
+        });
 }
 
 setInterval(function () {
@@ -64,7 +77,6 @@ function sendHttpResponse(res, resultCode, payload) {
     res.setHeader('Content-Type', 'application/json');
     res.end(payload);
 }
-
 
 webSocketServer.on('connection', (ws, request) => {
     const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
@@ -89,6 +101,48 @@ app.get('/evaluates', function (req, res) {
     }
 
     sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluates }));
+});
+
+
+app.get('/auctions', function (req, res) {
+    let auctions = {
+        list: auctionEntryList
+            .filter(auction => auction != null)
+            .map(auction => auction.toString())
+    }
+
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: auctions }));
+});
+
+app.get('/mypage', function (req, res) {
+    const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
+    console.log(uid);
+
+    console.log(evaluateEntryList
+        .filter(evaluate => evaluate != null)
+        .filter(evaluate => evaluate.getUid() == uid)
+        .map(evaluate => evaluate.toString()));
+
+    let mypageEntryList = {
+        beEvaluatedList: evaluateEntryList
+            .filter(evaluate => evaluate != null)
+            .filter(evaluate => evaluate.getUid() == uid)
+            .map(evaluate => evaluate.toString()),
+        evaluateList: evaluateEntryList
+            .filter(evaluate => evaluate != null)
+            .filter(evaluate => evaluate.isAlreadyEvaluate(uid))
+            .map(auction => auction.toString()),
+        beBidList: auctionEntryList
+            .filter(auction => auction != null)
+            .filter(auction => auction.getUid() == uid)
+            .map(auction => auction.toString()),
+        evaluateist: auctionEntryList
+            .filter(auction => auction != null)
+            .filter(auction => auction.isBidUser(uid))
+            .map(auction => auction.toString()),
+    }
+
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: mypageEntryList }));
 });
 
 app.get('/public/*', function (req, res) {
@@ -122,13 +176,23 @@ app.post("/upload", function (req, res) {
         base64Data = req.body.image.replace(/^data:image\/png;base64,/, "");
     else if (fileExt == ".gif")
         base64Data = req.body.image.replace(/^data:image\/gif;base64,/, "");
+    else if (fileExt == ".jpg")
+        base64Data = req.body.image.replace(/^data:image\/jpg;base64,/, "");
 
     fs.writeFile("./public/images/" + fileName, base64Data, 'base64', function (err) {
         if (err) {
             console.log(err);
             sendHttpResponse(res, ResultCode.LOGIC_ERROR);
         }
-        sendHttpResponse(res, ResultCode.SUCCESS);
+
+        const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
+        let evaluateEntry = new EvaluateEntry(uid, "./public/images/" + fileName, base64Data);
+
+        console.log(evaluateEntry.id);
+
+        evaluateEntryList[evaluateEntry.id] = evaluateEntry;
+
+        sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
     });
 });
 
@@ -144,6 +208,11 @@ app.post('/evaluate', function (req, res) {
     }
 
     const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
+    if (evaluateEntry.getUid() == uid) {
+        sendHttpResponse(res, ResultCode.CANNOT_EVALUATE_OWN);
+        return;
+    }
+
     if (evaluateEntry.isAlreadyEvaluate(uid)) {
         sendHttpResponse(res, ResultCode.ALREADY_EVALUATE_ENTRY);
         return;
@@ -153,6 +222,37 @@ app.post('/evaluate', function (req, res) {
     sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
 });
 
+app.post('/bid', function (req, res) {
+    const id = req.body.id;
+    const auctionEntry = auctionEntryList[id];
+
+    if (
+        evaluateEntry == null ||
+        evaluateEntry == undefined) {
+        sendHttpResponse(res, ResultCode.NO_EVALUATE_ENTRY);
+        return;
+    }
+
+    const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
+    if (!auctionEntry.isDone()) {
+        sendHttpResponse(res, ResultCode.ALREADY_DONE_ENTRY);
+        return;
+    }
+
+    if (auctionEntry.getLastBidUid() == uid) {
+        sendHttpResponse(res, ResultCode.CANNOT_BID_CONSECUTIVELY);
+        return;
+    }
+
+    if (auctionEntry.getLastBidPrice() >= price) {
+        sendHttpResponse(res, ResultCode.NOT_ENOUGH_PRICE);
+        return;
+    }
+
+    auctionEntry.bid(uid, price);
+    sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: auctionEntry.toString() }));
+});
+
 app.post("/test", function (req, res) {
     if (req.body.type == "init") {
         testInit(req, res);
@@ -160,14 +260,19 @@ app.post("/test", function (req, res) {
     else if (req.body.type == "vt") {
         testVT(req, res);
     }
+    else if (req.body.type == "show") {
+        testShow(req, res);
+    }
     else {
         sendHttpResponse(res, ResultCode.NOT_FOUND);
     }
 });
 
 function testInit(req, res) {
+    const uid = Utils.getRandomId(1, 10000000);
+    console.log(uid);
     const contents = fs.readFileSync(req.body.url, { encoding: 'base64' });
-    let evaluateEntry = new EvaluateEntry(req.body.url, contents);
+    let evaluateEntry = new EvaluateEntry(uid, req.body.url, contents);
 
     evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
@@ -195,6 +300,13 @@ function testVT(req, res) {
     console.log("vt time : ", Utils.getCurrentDate());
 
     update();
+
+    sendHttpResponse(res, ResultCode.SUCCESS);
+}
+
+function testShow(req, res) {
+    console.log(evaluateEntryList);
+    console.log(auctionEntryList);
 
     sendHttpResponse(res, ResultCode.SUCCESS);
 }

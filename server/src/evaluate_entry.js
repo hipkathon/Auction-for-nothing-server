@@ -7,8 +7,9 @@ class EvaluateEntry {
         HIP: 3
     };
 
-    constructor(url, src) {
+    constructor(uid, url, src) {
         this.id = EvaluateEntry.EVALUATE_ENTRY_ID++;
+        this.uid = uid;
         this.url = url;
         this.src = src;
         this.state = EvaluateEntry.State.HIPPABLE;
@@ -24,6 +25,10 @@ class EvaluateEntry {
         this.intParam2 = 0;
         this.strParam1 = "";
         this.strParam2 = "";
+    }
+
+    getUid() {
+        return this.uid;
     }
 
     toString() {
