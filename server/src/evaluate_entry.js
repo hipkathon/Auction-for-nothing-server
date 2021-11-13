@@ -1,3 +1,5 @@
+const Utils = require('./utils.js');
+
 class EvaluateEntry {
     static EVALUATE_ENTRY_ID = 1;
 
@@ -41,7 +43,7 @@ class EvaluateEntry {
             content: this.content,
             hip: this.hip,
             state: this.state,
-            expireDate: this.expireDate.getSeconds(),
+            expireDate: Utils.timestamp(this.expireDate),
             intParam1: this.intParam1,
             intParam2: this.intParam2,
             strParam1: this.strParam1,

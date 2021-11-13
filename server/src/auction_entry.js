@@ -1,3 +1,5 @@
+const Utils = require('./utils.js');
+
 class AuctionEntry {
     static AUCTION_ENTRY_ID = 1;
 
@@ -42,7 +44,7 @@ class AuctionEntry {
             title: this.title,
             content: this.content,
             state: this.state,
-            nextUpdateDate: this.nextUpdateDate.getSeconds(),
+            nextUpdateDate: Utils.timestamp(this.nextUpdateDate),
             lastBidUid: this.lastBidUid,
             lastBidPrice: this.lastBidPrice,
         };

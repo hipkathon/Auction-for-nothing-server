@@ -283,7 +283,7 @@ function broadcastUpdatedEvaluatedEntry(entry) {
         id: entry.id,
         hip: entry.hip,
         state: entry.state,
-        expireDate: entry.expireDate
+        expireDate: Utils.timestamp(entry.expireDate)
     };
 
     for (let i in SOCKET_LIST) {
@@ -299,7 +299,7 @@ function broadcastUpdatedAuctionEntry(entry) {
         type: "UpdateAuctionEntry",
         id: entry.id,
         state: entry.state,
-        nextUpdateDate: entry.nextUpdateDate,
+        nextUpdateDate: Utils.timestamp(entry.nextUpdateDate),
         lastBidUid: entry.lastBidUid,
         lastBidPrice: entry.lastBidPrice
     };
