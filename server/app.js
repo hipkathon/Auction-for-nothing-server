@@ -42,6 +42,8 @@ const webSocketServer = new wsModule.Server({
 let evaluateEntryList = [];
 let auctionEntryList = [];
 
+let SOCKET_LIST = {};
+
 function update() {
     const curDate = Utils.getCurrentDate();
     const expiredEntryList = evaluateEntryList
@@ -51,13 +53,16 @@ function update() {
     let removeReservedEvaluateEntryList = [];
     expiredEntryList.forEach(expiredEntry => {
         expiredEntry.finish();
+        broadcastUpdatedEvaluatedEntry( expiredEntry );
+
         if (expiredEntry.isHip()) {
             let auctionEntry = new AuctionEntry(
                 expiredEntry.uid,
                 expiredEntry.url,
                 expiredEntry.src,
                 expiredEntry.title,
-                expiredEntry.content);
+                expiredEntry.content,
+                Utils.getCurrentDate());
             auctionEntryList[auctionEntry.id] = auctionEntry;
             removeReservedEvaluateEntryList.push(expiredEntry.id);
         }
@@ -67,9 +72,12 @@ function update() {
         expiredEntryList[id] = null;
 
     auctionEntryList
-        .filter(auctionEntry => auctionEntry != null)
+        .filter(auctionEntry => (auctionEntry != null) )
         .forEach(auctionEntry => {
-            auctionEntry.update();
+            const prevState = auctionEntry.state;
+            auctionEntry.update(Utils.getCurrentDate());
+            if ( auctionEntry.state != prevState)
+                broadcastUpdatedAuctionEntry(auctionEntry);
         });
 }
 
@@ -86,6 +94,10 @@ function sendHttpResponse(res, resultCode, payload) {
 webSocketServer.on('connection', (ws, request) => {
     const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
     console.log(`새로운 클라이언트[${ip}] 접속`);
+
+    ws.id = Utils.getRandomId(1, 10000000);
+    SOCKET_LIST[ws.id] = ws;
+
     if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
         ws.send(`클라이언트[${ip}] 접속을 환영합니다 from 서버`);
     }
@@ -94,6 +106,7 @@ webSocketServer.on('connection', (ws, request) => {
     ws.on('error', (error) => { console.log(`클라이언트[${ip}] 연결 에러발생 : ${error}`); })
 
     ws.on('close', () => {
+        delete SOCKET_LIST[ws.id];
         console.log(`클라이언트[${ip}] 웹소켓 연결 종료`);
     })
 });
@@ -121,12 +134,6 @@ app.get('/auctions', function (req, res) {
 
 app.get('/mypage', function (req, res) {
     const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
-    console.log(uid);
-
-    console.log(evaluateEntryList
-        .filter(evaluate => evaluate != null)
-        .filter(evaluate => evaluate.getUid() == uid)
-        .map(evaluate => evaluate.toString()));
 
     let mypageEntryList = {
         beEvaluatedList: evaluateEntryList
@@ -200,8 +207,6 @@ app.post("/upload", function (req, res) {
             title,
             content);
 
-        console.log(evaluateEntry.id);
-
         evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
         sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
@@ -232,6 +237,8 @@ app.post('/evaluate', function (req, res) {
 
     evaluateEntry.evaluate(uid);
     sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: evaluateEntry.toString() }));
+
+    broadcastUpdatedEvaluatedEntry( evaluateEntry );
 });
 
 app.post('/bid', function (req, res) {
@@ -246,8 +253,8 @@ app.post('/bid', function (req, res) {
     }
 
     const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
-    if (!auctionEntry.isDone()) {
-        sendHttpResponse(res, ResultCode.ALREADY_DONE_ENTRY);
+    if (!auctionEntry.isInPorgress()) {
+        sendHttpResponse(res, ResultCode.NOT_IN_PROGRESS_AUCTION);
         return;
     }
 
@@ -261,10 +268,51 @@ app.post('/bid', function (req, res) {
         return;
     }
 
-    auctionEntry.bid(uid, price);
+    auctionEntry.bid(uid, price, Utils.getCurrentDate());
     sendHttpResponse(res, ResultCode.SUCCESS, JSON.stringify({ payload: auctionEntry.toString() }));
+
+    broadcastUpdatedAuctionEntry(auctionEntry);
 });
 
+/// broadcast
+function broadcastUpdatedEvaluatedEntry( entry ) {
+    const obj = {
+        type : "UpdateEvaluateEntry",
+        id : entry.id,
+        hip : entry.hip,
+        state : entry.state,
+        expireDate : entry.expireDate};
+        
+    JSON.stringify(obj);
+
+    for (let i in SOCKET_LIST) {
+        let ws = SOCKET_LIST[i];
+        if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
+            ws.send(JSON.stringify(obj));
+        }
+    }
+}
+
+function broadcastUpdatedAuctionEntry( entry ) {
+    const obj = {
+        type : "UpdateAuctionEntry",
+        id: entry.id,
+        state: entry.state,
+        nextUpdateDate: entry.nextUpdateDate,
+        lastBidUid: entry.lastBidUid,
+        lastBidPrice: entry.lastBidPrice };
+        
+    JSON.stringify(obj);
+
+    for (let i in SOCKET_LIST) {
+        let ws = SOCKET_LIST[i];
+        if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
+            ws.send(JSON.stringify(obj));
+        }
+    }
+}
+
+/// test
 app.post("/test", function (req, res) {
     if (req.body.type == "init") {
         testInit(req, res);
@@ -282,7 +330,6 @@ app.post("/test", function (req, res) {
 
 function testInit(req, res) {
     const uid = Utils.getRandomId(1, 10000000);
-    console.log(uid);
     const contents = fs.readFileSync(req.body.url, { encoding: 'base64' });
     let evaluateEntry = new EvaluateEntry(uid, req.body.url, contents);
 

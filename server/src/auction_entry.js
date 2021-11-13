@@ -7,14 +7,15 @@ class AuctionEntry {
         DONE: 3
     };
 
-    constructor(uid, url, src, title, content) {
-        this.id = AuctionEntry.AuctionEntry++;
+    constructor(uid, url, src, title, content, curDate) {
+        this.id = AuctionEntry.AUCTION_ENTRY_ID++;
         this.uid = uid;
         this.url = url;
         this.src = src;
+        this.title = title;
+        this.content = content;
         this.state = AuctionEntry.State.TO_DO;
 
-        const curDate = new Date();
         this.nextUpdateDate = new Date(new Date(curDate).setHours(curDate.getHours() + 2));
 
         this.bidUidDict = {};
@@ -37,7 +38,7 @@ class AuctionEntry {
         const obj = {
             id: this.id,
             url: this.url,
-            src: this.src,
+            src: 0, // this.src,
             title: this.title,
             content: this.content,
             state: this.state,
@@ -54,6 +55,7 @@ class AuctionEntry {
 
     update(curDate) {
         if (this.nextUpdateDate < curDate) {
+            this.nextUpdateDate = new Date(new Date(curDate).setHours(curDate.getHours() + 2));
             if (this.state == AuctionEntry.State.TO_DO) {
                 this.state = AuctionEntry.State.IN_PROGRESS;
             }
@@ -71,9 +73,15 @@ class AuctionEntry {
         return this.lastBidPrice;
     }
 
-    bid(uid, price) {
+    bid(uid, price, curDate) {
         this.lastBidUid = uid;
         this.lastBidPrice = price;
+
+        const biddingEndDate = new Date(new Date(curDate).setHours(curDate.getHours() + 2));
+        this.nextUpdateDate =
+            this.nextUpdateDate > biddingEndDate ?
+                this.nextUpdateDate :
+                biddingEndDate;
     }
 
     isBidUser(uid) {

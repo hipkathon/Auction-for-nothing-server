@@ -37,7 +37,7 @@ class EvaluateEntry {
         const obj = {
             id: this.id,
             url: this.url,
-            src: this.src,
+            src: 0, // this.src,
             title: this.title,
             content: this.content,
             hip: this.hip,
