@@ -87,7 +87,7 @@ setInterval(function () {
 
 function sendHttpResponse(res, resultCode, payload) {
     res.status(resultCode);
-    res.setHeader('Content-Type', 'application/json');
+    res.set({ 'content-type': 'application/json; charset=utf-8' });
     res.end(payload);
 }
 
@@ -202,7 +202,7 @@ app.post("/upload", function (req, res) {
         const uid = Network.getUid(req.socket.remoteAddress, req.socket.remotePort);
         let evaluateEntry = new EvaluateEntry(
             uid,
-            "./public/images/" + fileName,
+            "./images/" + fileName,
             base64Data,
             title,
             content);
@@ -333,8 +333,13 @@ app.post("/test", function (req, res) {
 
 function testInit(req, res) {
     const uid = Utils.getRandomId(1, 10000000);
-    const contents = fs.readFileSync(req.body.url, { encoding: 'base64' });
-    let evaluateEntry = new EvaluateEntry(uid, req.body.url, contents);
+    const title = req.body.title;
+    const content = req.body.content;
+    const src = fs.readFileSync("public/" + req.body.url, { encoding: 'base64' });
+    let evaluateEntry = new EvaluateEntry(uid, req.body.url, src, title, content);
+
+    const hip = Utils.getRandomId(127, 3000);
+    evaluateEntry.hip = hip;
 
     evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
