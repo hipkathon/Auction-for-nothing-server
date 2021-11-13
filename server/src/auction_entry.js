@@ -42,7 +42,7 @@ class AuctionEntry {
             title: this.title,
             content: this.content,
             state: this.state,
-            nextUpdateDate: this.nextUpdateDate,
+            nextUpdateDate: this.nextUpdateDate.getSeconds(),
             lastBidUid: this.lastBidUid,
             lastBidPrice: this.lastBidPrice,
         };

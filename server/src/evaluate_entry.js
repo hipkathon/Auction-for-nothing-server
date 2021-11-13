@@ -7,7 +7,7 @@ class EvaluateEntry {
         HIP: 3
     };
 
-    constructor(uid, url, src, title, content) {
+    constructor(uid, url, src, title, content, curDate) {
         this.id = EvaluateEntry.EVALUATE_ENTRY_ID++;
         this.uid = uid;
         this.url = url;
@@ -16,7 +16,6 @@ class EvaluateEntry {
         this.content = content;
         this.state = EvaluateEntry.State.HIPPABLE;
 
-        const curDate = new Date();
         this.expireDate = new Date(new Date(curDate).setHours(curDate.getHours() + 2));
 
         this.evaluateUidDict = {};
@@ -42,7 +41,7 @@ class EvaluateEntry {
             content: this.content,
             hip: this.hip,
             state: this.state,
-            expireDate: this.expireDate,
+            expireDate: this.expireDate.getSeconds(),
             intParam1: this.intParam1,
             intParam2: this.intParam2,
             strParam1: this.strParam1,

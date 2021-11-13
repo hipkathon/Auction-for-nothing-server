@@ -47,6 +47,7 @@ let SOCKET_LIST = {};
 function update() {
     const curDate = Utils.getCurrentDate();
     const expiredEntryList = evaluateEntryList
+        .filter(evaluateEntry => evaluateEntry != null)
         .filter(evaluateEntry => evaluateEntry.isHippable())
         .filter(evaluateEntry => evaluateEntry.isExpire(curDate));
 
@@ -68,8 +69,7 @@ function update() {
         }
     });
 
-    for (id in removeReservedEvaluateEntryList)
-        expiredEntryList[id] = null;
+    removeReservedEvaluateEntryList.forEach(x => evaluateEntryList[x] = null);
 
     auctionEntryList
         .filter(auctionEntry => (auctionEntry != null))
@@ -99,9 +99,9 @@ webSocketServer.on('connection', (ws, request) => {
     SOCKET_LIST[ws.id] = ws;
 
     if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
-        ws.send(`클라이언트[${ip}] 접속을 환영합니다 from 서버`);
+        // ws.send(`클라이언트[${ip}] 접속을 환영합니다 from 서버`);
     }
-    ws.on('message', (msg) => { console.log(`클라이언트[${ip}]에게 수신한 메시지 : ${msg}`); ws.send('메시지 잘 받았습니다! from 서버') })
+    ws.on('message', (msg) => { console.log(`클라이언트[${ip}]에게 수신한 메시지 : ${msg}`); })
 
     ws.on('error', (error) => { console.log(`클라이언트[${ip}] 연결 에러발생 : ${error}`); })
 
@@ -205,7 +205,8 @@ app.post("/upload", function (req, res) {
             "./images/" + fileName,
             base64Data,
             title,
-            content);
+            content,
+            Utils.getCurrentDate());
 
         evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
@@ -285,8 +286,6 @@ function broadcastUpdatedEvaluatedEntry(entry) {
         expireDate: entry.expireDate
     };
 
-    JSON.stringify(obj);
-
     for (let i in SOCKET_LIST) {
         let ws = SOCKET_LIST[i];
         if (ws.readyState === ws.OPEN) { // 연결 여부 체크 
@@ -304,8 +303,6 @@ function broadcastUpdatedAuctionEntry(entry) {
         lastBidUid: entry.lastBidUid,
         lastBidPrice: entry.lastBidPrice
     };
-
-    JSON.stringify(obj);
 
     for (let i in SOCKET_LIST) {
         let ws = SOCKET_LIST[i];
@@ -326,6 +323,9 @@ app.post("/test", function (req, res) {
     else if (req.body.type == "show") {
         testShow(req, res);
     }
+    else if (req.body.type == "broadcast") {
+        testBroadcast(req, res);
+    }
     else {
         sendHttpResponse(res, ResultCode.NOT_FOUND);
     }
@@ -336,7 +336,7 @@ function testInit(req, res) {
     const title = req.body.title;
     const content = req.body.content;
     const src = fs.readFileSync("public/" + req.body.url, { encoding: 'base64' });
-    let evaluateEntry = new EvaluateEntry(uid, req.body.url, src, title, content);
+    let evaluateEntry = new EvaluateEntry(uid, req.body.url, src, title, content, Utils.getCurrentDate());
 
     const hip = Utils.getRandomId(127, 3000);
     evaluateEntry.hip = hip;
@@ -356,7 +356,7 @@ function testVT(req, res) {
     else if (req.body.time == "hour") {
         Utils.virtualTime += req.body.value * 60 * 60;
     }
-    else if (req.boy.time == "clear") {
+    else if (req.body.time == "clear") {
         Utils.virtualTime = 0;
     }
     else {
@@ -367,6 +367,18 @@ function testVT(req, res) {
     console.log("vt time : ", Utils.getCurrentDate());
 
     update();
+
+    sendHttpResponse(res, ResultCode.SUCCESS);
+}
+
+function testBroadcast(req, res) {
+    evaluateEntryList
+        .filter(evaluateEntry => evaluateEntry != null)
+        .forEach(evaluateEntry => broadcastUpdatedEvaluatedEntry(evaluateEntry));
+
+    auctionEntryList
+        .filter(auctionEntry => auctionEntry != null)
+        .forEach(auctionEntry => broadcastUpdatedAuctionEntry(auctionEntry));
 
     sendHttpResponse(res, ResultCode.SUCCESS);
 }
