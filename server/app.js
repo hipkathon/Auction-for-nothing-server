@@ -38,6 +38,15 @@ const webSocketServer = new wsModule.Server({
 // User variable
 let evaluateEntryList = [];
 
+function update() {
+
+}
+
+setInterval(function () {
+    // update();
+}, 1000 / 32);
+
+
 webSocketServer.on('connection', (ws, request) => {
     const ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
     console.log(`새로운 클라이언트[${ip}] 접속`);
@@ -101,6 +110,9 @@ app.post("/test", function (req, res) {
     if (req.body.type == "init") {
         testInit(req, res);
     }
+    else if (req.body.type == "vt") {
+        testVT(req, res);
+    }
     else {
         res.status(ResultCode.NOT_FOUND);
         res.send();
@@ -109,12 +121,39 @@ app.post("/test", function (req, res) {
 
 function testInit(req, res) {
     const contents = fs.readFileSync(req.body.url, { encoding: 'base64' });
-
-    let evaluateEntry = new EvaluateEntry(req.body.url, req.body.src);
+    let evaluateEntry = new EvaluateEntry(req.body.url, contents);
 
     evaluateEntryList[evaluateEntry.id] = evaluateEntry;
 
     res.status(200);
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ payload: evaluateEntry.toString() }));
+}
+
+function testVT(req, res) {
+    if (req.body.time == "sec") {
+        Utils.virtualTime += req.body.value;
+    }
+    else if (req.body.time == "min") {
+        Utils.virtualTime += req.body.value * 60;
+    }
+    else if (req.body.time == "hour") {
+        Utils.virtualTime += req.body.value * 60 * 60;
+    }
+    else if (req.boy.time == "clear") {
+        Utils.virtualTime = 0;
+    }
+    else {
+        res.status(ResultCode.NOT_FOUND);
+        res.send();
+        return;
+    }
+
+    console.log("vt time : ", Utils.getCurrentDate());
+
+    update();
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/json');
+    res.send();
 }
