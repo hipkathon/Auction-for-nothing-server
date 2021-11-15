@@ -1,3 +1,5 @@
+![](https://github.com/hipkathon/Auction-for-nothing-server/blob/t'main/docs/hip-not-hip.gif?raw=true)
+
 # Auction-for-nothing-server
 
  - 내가 가치가 있다고 생각하는 것을 사람들과 공유
